@@ -15,8 +15,8 @@ android {
   versionCode = 3
   val familyEmail = providers.gradleProperty("familyEmail").orElse("").get()
   val familyId = providers.gradleProperty("familyId").orElse("").get()
-  buildConfigField("String", "FAMILY_EMAIL", "\\\"" + familyEmail.replace("\\", "\\\\").replace("\\"", "\\\"") + "\\\"")
-  buildConfigField("String", "FAMILY_ID", "\\\"" + familyId.replace("\\", "\\\\").replace("\\"", "\\\"") + "\\\"")
+  buildConfigField("String", "FAMILY_EMAIL", "\"${familyEmail}\"")
+  buildConfigField("String", "FAMILY_ID", "\"${familyId}\"")
  }
  buildFeatures { compose = true; buildConfig = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }

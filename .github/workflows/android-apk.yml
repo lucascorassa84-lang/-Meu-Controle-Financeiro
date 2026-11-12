@@ -21,12 +21,30 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
-      - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+      - name: Require original signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_SIGNING_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$STORE_PASS" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Original Android signing key is required to update the installed app without data loss."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/finance-signing.jks"
+          chmod 600 "$RUNNER_TEMP/finance-signing.jks"
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/finance-signing.jks
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }}
+        run: gradle --no-daemon assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: MeuControleFinanceiro-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: MeuControleFinanceiro-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       - name: Publish APK for direct download
@@ -35,7 +53,7 @@ jobs:
         run: |
           VERSION=$(grep -m1 'versionName =' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
           TAG="download-${VERSION}"
-          APK="app/build/outputs/apk/debug/app-debug.apk"
+          APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Meu Controle Financeiro ${VERSION}" --notes "APK de teste para Android. Instale apenas se confiar neste repositório." --target "${GITHUB_SHA}"
           gh release upload "$TAG" "$APK#MeuControleFinanceiro.apk" --clobber

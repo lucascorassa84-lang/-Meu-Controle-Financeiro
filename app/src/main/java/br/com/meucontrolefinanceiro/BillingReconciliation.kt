@@ -1,6 +1,8 @@
 package br.com.meucontrolefinanceiro
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -80,7 +82,7 @@ fun cardBillAmount(card: FinanceCard, month: YearMonth, old: List<CardPurchase>,
  var movementKey by remember { mutableStateOf("") }
  var kind by remember { mutableStateOf("EXPENSE") }
  var error by remember { mutableStateOf("") }
- Column(Modifier.fillMaxSize()) {
+ Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
   if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
   if (section == 8) {
    Text("Faturas e parcelamentos", style = MaterialTheme.typography.titleLarge)
@@ -111,7 +113,7 @@ fun cardBillAmount(card: FinanceCard, month: YearMonth, old: List<CardPurchase>,
      if (value == null || ym == null || value > (total - paid).coerceAtLeast(0)) error = "Pagamento inválido."
      else { scope.launch { dao.addBillPayment(BillPayment(cardId = card.id, billMonth = month, amountCents = value)) }; amount = ""; error = "" }
     }) { Text("Registrar pagamento") }
-    LazyColumn { items(plans.filter { it.cardId == card.id }, key = { it.id }) { p ->
+    Column { plans.filter { it.cardId == card.id }.forEach { p ->
      ListItem(headlineContent = { Text(p.description) }, supportingContent = { Text("${p.installments}x · primeira fatura ${p.firstBillMonth}") }, trailingContent = { Text(moneyBRL(p.totalCents)) })
     } }
    }
@@ -135,7 +137,7 @@ fun cardBillAmount(card: FinanceCard, month: YearMonth, old: List<CardPurchase>,
      error = if (id == -1L) "Movimentação já cadastrada." else ""
     }; name = ""; amount = ""; movementKey = "" }
    }) { Text("Adicionar movimentação") }
-   LazyColumn { items(movements, key = { it.id }) { m ->
+   Column { movements.forEach { m ->
     Column(Modifier.padding(vertical = 8.dp)) {
      Text(m.accountName + " · " + m.description)
      Text(moneyBRL(m.amountCents) + " · " + if(m.matchedTransactionId == null) "Pendente" else "Conciliada")

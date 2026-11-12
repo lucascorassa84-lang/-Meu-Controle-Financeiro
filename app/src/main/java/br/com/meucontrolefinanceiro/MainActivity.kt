@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @Entity(tableName = "transactions")
@@ -179,7 +181,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
        if (transactions.isEmpty()) Text("Nenhum lançamento registrado ainda.", color = Color(0xFF64748B), modifier = Modifier.padding(10.dp))
        else transactions.take(5).forEach { t ->
         ListItem(headlineContent = { Text(t.description, fontWeight = FontWeight.Medium) },
-         supportingContent = { Text(if (t.kind == "INCOME") "Receita" else "Despesa") },
+         supportingContent = { Text((if (t.kind == "INCOME") "Receita" else "Despesa") + " · " + SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("pt-BR")).format(Date(t.createdAt))) },
          trailingContent = { Text((if (t.kind == "INCOME") "+ " else "- ") + money(t.amountCents),
           color = if (t.kind == "INCOME") Color(0xFF087B65) else Color(0xFFC24A4A)) })
         HorizontalDivider(color = Color(0xFFF0F2F7))
@@ -189,7 +191,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
      Text("Valores de registros locais; não representam saldos bancários sincronizados.", color = Color(0xFF64748B), style = MaterialTheme.typography.bodySmall)
     }
     1 -> Column {
-     OutlinedTextField(description, { description = it }, label = { Text("Descrição") }, modifier = Modifier.fillMaxWidth())
+     OutlinedTextField(description, { description = it }, label = { Text("O que foi? Ex.: combustível, mercado, salário") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
      OutlinedTextField(amount, { amount = it }, label = { Text("Valor em R$") }, modifier = Modifier.fillMaxWidth())
      Row {
       FilterChip(kind == "EXPENSE", { kind = "EXPENSE" }, label = { Text("Despesa") })
@@ -198,7 +200,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
      }
      Button(onClick = {
       val value = cents(amount)
-      if (description.isBlank() || value == null) error = "Preencha descrição e valor positivo."
+      if (description.isBlank() || value == null) error = "Informe o motivo do lançamento e um valor positivo."
       else {
        scope.launch { dao.addTransaction(Transaction(description = description.trim(), amountCents = value, kind = kind)) }
        description = ""; amount = ""; error = ""

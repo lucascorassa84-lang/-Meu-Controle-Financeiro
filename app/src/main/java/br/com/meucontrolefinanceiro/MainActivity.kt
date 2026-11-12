@@ -126,7 +126,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
  val income = transactions.filter { it.kind == "INCOME" }.sumOf { it.amountCents }
  val expense = transactions.filter { it.kind == "EXPENSE" }.sumOf { it.amountCents }
  val outstanding = debts.sumOf { d -> (d.principalCents - payments.filter { it.debtId == d.id }.sumOf { it.amountCents }).coerceAtLeast(0) }
- val sections = listOf("Painel", "Lançamentos", "Dívidas", "Bancos", "Contas", "Cartões", "Metas", "Relatórios", "Faturas", "Conciliação")
+ val sections = listOf("Painel", "Lançamentos", "Dívidas", "Bancos", "Contas", "Cartões", "Metas", "Relatórios", "Faturas", "Conciliação", "Família online")
  Scaffold(containerColor = Color(0xFFF5F7FC), topBar = {
   Surface(color = Color(0xFF142B56)) {
    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
@@ -265,6 +265,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
     }
     4, 5, 6 -> ExtraFinanceScreen(extraDao, tab)
     8, 9 -> BillingScreen(billingDao, dao, extraDao, tab)
+    10 -> FamilySyncScreen()
     7 -> Column {
      Text("Relatório financeiro", style = MaterialTheme.typography.titleLarge)
      Text("Receitas: " + money(income))

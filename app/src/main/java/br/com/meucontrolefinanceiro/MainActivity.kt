@@ -267,6 +267,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
    }
   }
  }
+ }
 }
 
 @Composable

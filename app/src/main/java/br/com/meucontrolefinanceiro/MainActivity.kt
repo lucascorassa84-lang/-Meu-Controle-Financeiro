@@ -181,7 +181,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
        if (transactions.isEmpty()) Text("Nenhum lançamento registrado ainda.", color = Color(0xFF64748B), modifier = Modifier.padding(10.dp))
        else transactions.take(5).forEach { t ->
         ListItem(headlineContent = { Text(t.description, fontWeight = FontWeight.Medium) },
-         supportingContent = { Text((if (t.kind == "INCOME") "Receita" else "Despesa") + " · " + SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("pt-BR")).format(Date(t.createdAt))) },
+         supportingContent = { Text(if (t.kind == "INCOME") "Receita" else "Despesa") },
          trailingContent = { Text((if (t.kind == "INCOME") "+ " else "- ") + money(t.amountCents),
           color = if (t.kind == "INCOME") Color(0xFF087B65) else Color(0xFFC24A4A)) })
         HorizontalDivider(color = Color(0xFFF0F2F7))

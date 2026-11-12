@@ -11,8 +11,8 @@ android {
   applicationId = "br.com.meucontrolefinanceiro"
   minSdk = 26
   targetSdk = 35
-  versionCode = 1
-  versionName = "1.0.0-dev"
+  versionCode = 2
+  versionName = "1.1.0-dev"
  }
  buildFeatures { compose = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -27,5 +27,8 @@ dependencies {
  implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
  implementation("androidx.room:room-runtime:2.6.1")
  implementation("androidx.room:room-ktx:2.6.1")
+ implementation("androidx.biometric:biometric:1.1.0")
+ implementation("androidx.work:work-runtime-ktx:2.9.1")
+ implementation("androidx.core:core-ktx:1.15.0")
  kapt("androidx.room:room-compiler:2.6.1")
 }

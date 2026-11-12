@@ -19,7 +19,9 @@ fun FamilySyncScreen() {
  var endpoint by remember { mutableStateOf("") }
  var publicKey by remember { mutableStateOf("") }
  var token by remember { mutableStateOf("") }
- var familyId by remember { mutableStateOf("") }
+ var email by remember { mutableStateOf("") }
+ var password by remember { mutableStateOf("") }
+ var familyId by remember { mutableStateOf("f18fe643-163a-4934-8220-7339bd7ac825") }
  var description by remember { mutableStateOf("") }
  var amount by remember { mutableStateOf("") }
  var kind by remember { mutableStateOf("EXPENSE") }
@@ -46,10 +48,28 @@ fun FamilySyncScreen() {
  }
  Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
   Text("Movimentações compartilhadas", style = MaterialTheme.typography.titleLarge)
-  Text("Área de integração Supabase. Não insira chaves secretas/service_role.")
+  Text("Entre com sua conta Supabase. Use apenas chave publicável/anon; nunca service_role.")
   OutlinedTextField(endpoint, { endpoint = it }, label = { Text("URL do projeto HTTPS") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
   OutlinedTextField(publicKey, { publicKey = it }, label = { Text("Chave publicável / anon") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-  OutlinedTextField(token, { token = it }, label = { Text("JWT de sessão do usuário") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+  OutlinedTextField(email, { email = it }, label = { Text("E-mail da conta Supabase") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+  OutlinedTextField(password, { password = it }, label = { Text("Senha") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+  Button(enabled = !busy, onClick = {
+   if (!endpoint.startsWith("https://") || publicKey.isBlank() || email.isBlank() || password.isBlank()) {
+    status = "Informe URL HTTPS, chave publicável, e-mail e senha."
+   } else {
+    busy = true
+    scope.launch {
+     try {
+      val jwt = withContext(Dispatchers.IO) { SupabaseAuthClient(endpoint.trim(), publicKey.trim()).signIn(email.trim(), password) }
+      token = jwt
+      password = ""
+      status = "Conta autenticada. Atualize as movimentações."
+     } catch (e: Exception) { status = e.message ?: "Falha no login" }
+     finally { busy = false }
+    }
+   }
+  }) { Text("Entrar na conta") }
+  Text(if (token.isNotBlank()) "Sessão autenticada" else "Faça login para sincronizar.")
   OutlinedTextField(familyId, { familyId = it }, label = { Text("UUID da família") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
   Button(enabled = !busy, onClick = {
    runAction { client ->

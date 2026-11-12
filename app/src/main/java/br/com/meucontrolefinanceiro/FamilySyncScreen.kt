@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,6 +30,20 @@ fun FamilySyncScreen() {
  var rows by remember { mutableStateOf(listOf<JSONObject>()) }
  var busy by remember { mutableStateOf(false) }
  val scope = rememberCoroutineScope()
+ LaunchedEffect(token, familyId, endpoint, publicKey) {
+  if (token.isBlank()) return@LaunchedEffect
+  while (true) {
+   try {
+    val result = withContext(Dispatchers.IO) {
+     FamilySyncClient(endpoint.trim(), publicKey.trim(), token).listMovements(familyId.trim())
+    }
+    rows = (0 until result.length()).map { result.getJSONObject(it) }
+   } catch (e: Exception) {
+    status = "Atualização indisponível: " + (e.message ?: "erro de rede")
+   }
+   delay(15000L)
+  }
+ }
  fun runAction(action: suspend (FamilySyncClient) -> Unit) {
   if (busy) return
   val id = runCatching { UUID.fromString(familyId.trim()) }.getOrNull()

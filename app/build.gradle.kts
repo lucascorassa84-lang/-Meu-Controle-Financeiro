@@ -18,6 +18,20 @@ android {
   buildConfigField("String", "FAMILY_EMAIL", "\"${familyEmail}\"")
   buildConfigField("String", "FAMILY_ID", "\"${familyId}\"")
  }
+ signingConfigs {
+  create("persistent") {
+   storeFile = file(System.getenv("ANDROID_KEYSTORE_PATH") ?: "missing-signing-key.jks")
+   storePassword = System.getenv("ANDROID_STORE_PASSWORD")
+   keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+   keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+  }
+ }
+ buildTypes {
+  getByName("release") {
+   isMinifyEnabled = false
+   signingConfig = signingConfigs.getByName("persistent")
+  }
+ }
  buildFeatures { compose = true; buildConfig = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }

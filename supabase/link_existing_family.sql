@@ -1,16 +1,22 @@
--- Executar uma vez no SQL Editor do projeto Supabase correto, com acesso de administrador.
--- Vincula os dois usuários previamente cadastrados à mesma família.
--- Não desativa RLS nem altera políticas existentes.
+-- Execute no SQL Editor do projeto correto após conferir que há exatamente dois usuários.
+-- Usa IDs reais do auth.users; não utiliza identificadores parciais nem presumidos.
+-- Requer acesso administrativo. Não desativa RLS.
 BEGIN;
 DO $$
 DECLARE
-  owner_id uuid := '6848f420-3ee3-460d-81c9-502d998baee5';
-  spouse_id uuid := '0073e752-6e6f-4cfb-ab09-c26ae1aa3d19';
+  owner_id uuid;
+  spouse_id uuid;
   target_family uuid;
+  user_count integer;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = owner_id)
-     OR NOT EXISTS (SELECT 1 FROM auth.users WHERE id = spouse_id) THEN
-    RAISE EXCEPTION 'Usuários não encontrados no Supabase Auth; nenhuma alteração realizada';
+  SELECT count(*) INTO user_count FROM auth.users;
+  IF user_count <> 2 THEN
+    RAISE EXCEPTION 'Esperados exatamente 2 usuários; encontrados %. Vinculação cancelada.', user_count;
+  END IF;
+  SELECT id INTO owner_id FROM auth.users ORDER BY created_at, id LIMIT 1;
+  SELECT id INTO spouse_id FROM auth.users ORDER BY created_at, id OFFSET 1 LIMIT 1;
+  IF owner_id = spouse_id OR owner_id IS NULL OR spouse_id IS NULL THEN
+    RAISE EXCEPTION 'Identificação dos usuários falhou';
   END IF;
   SELECT id INTO target_family FROM public.families
    WHERE created_by = owner_id ORDER BY created_at, id LIMIT 1 FOR UPDATE;
@@ -24,10 +30,7 @@ BEGIN
   RAISE NOTICE 'Família vinculada: %', target_family;
 END $$;
 COMMIT;
-
--- Conferência administrativa: ambos devem aparecer na mesma family_id.
-SELECT f.id AS family_id, f.created_by, m.user_id
-FROM public.families f
-JOIN public.family_members m ON m.family_id = f.id
-WHERE f.created_by = '6848f420-3ee3-460d-81c9-502d998baee5'::uuid
-ORDER BY f.created_at, f.id, m.user_id;
+SELECT f.id AS family_id, m.user_id
+FROM public.families f JOIN public.family_members m ON m.family_id=f.id
+WHERE f.created_by=(SELECT id FROM auth.users ORDER BY created_at,id LIMIT 1)
+ORDER BY f.created_at,f.id,m.user_id;

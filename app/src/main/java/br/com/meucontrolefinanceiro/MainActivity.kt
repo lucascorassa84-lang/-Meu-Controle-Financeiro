@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -98,7 +100,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
  val outstanding = debts.sumOf { d -> (d.principalCents - payments.filter { it.debtId == d.id }.sumOf { it.amountCents }).coerceAtLeast(0) }
  Scaffold(topBar = { Surface(tonalElevation = 3.dp) { Text("Meu Controle Financeiro", Modifier.fillMaxWidth().padding(18.dp), style = MaterialTheme.typography.titleLarge) } }) { padding ->
   Column(Modifier.fillMaxSize().padding(padding).padding(14.dp)) {
-   Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+   Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
     FilterChip(tab == 0, { tab = 0 }, label = { Text("Painel") })
     FilterChip(tab == 1, { tab = 1 }, label = { Text("Lançamentos") })
     FilterChip(tab == 2, { tab = 2 }, label = { Text("Dívidas") })
@@ -163,6 +165,18 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
        Text(d.creditor, style = MaterialTheme.typography.titleMedium)
        Text("Principal restante: " + money(remain))
        Text("Parcelas: ${d.installments} · Taxa: ${d.annualInterestBps / 100.0}% a.a.")
+       val estimate = remember(d.id, remain) {
+        runCatching {
+         val start = if (d.dueDate.isBlank()) java.time.LocalDate.now().plusMonths(1) else java.time.LocalDate.parse(d.dueDate)
+         DebtCalculator.fixedInstallments(remain, d.annualInterestBps, d.installments, start)
+        }.getOrNull()
+       }
+       if (estimate != null) {
+        Text("Simulação de parcela: " + money(estimate.first().paymentCents))
+        Text("Previsão indicativa de quitação: " + estimate.last().dueDate.toString())
+        Text("Juros simulados: " + money(estimate.sumOf { it.interestCents }))
+        Text("Estimativa Price, sem taxas extras ou regras contratuais.")
+       }
        if (remain > 0) {
         if (selectedDebt == d.id) {
          OutlinedTextField(payment, { payment = it }, label = { Text("Amortização do principal") })

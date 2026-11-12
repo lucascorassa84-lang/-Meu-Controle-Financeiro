@@ -11,8 +11,8 @@ android {
   applicationId = "br.com.meucontrolefinanceiro"
   minSdk = 26
   targetSdk = 35
-  versionName = "1.1.2-dev"
-  versionCode = 4
+  versionName = "1.1.3-dev"
+  versionCode = 5
   val familyEmail = providers.gradleProperty("familyEmail").orElse("lucascorassa84@gmail.com").get()
   val familyId = providers.gradleProperty("familyId").orElse("f18fe643-163a-4934-8220-7339bd7ac825").get()
   buildConfigField("String", "FAMILY_EMAIL", "\"${familyEmail}\"")

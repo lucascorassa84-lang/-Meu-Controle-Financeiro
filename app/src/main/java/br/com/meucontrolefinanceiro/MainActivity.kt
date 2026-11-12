@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -51,14 +53,23 @@ data class DebtPayment(
  @Insert suspend fun addDebt(item: Debt)
  @Insert suspend fun addPayment(item: DebtPayment)
 }
-@Database(entities = [Transaction::class, Debt::class, DebtPayment::class], version = 1, exportSchema = false)
-abstract class FinanceDatabase : RoomDatabase() { abstract fun dao(): FinanceDao }
+@Database(entities = [Transaction::class, Debt::class, DebtPayment::class, Account::class, FinanceCard::class, CardPurchase::class, FinanceGoal::class], version = 2, exportSchema = false)
+abstract class FinanceDatabase : RoomDatabase() { abstract fun dao(): FinanceDao; abstract fun extras(): ExtraFinanceDao }
 
 class MainActivity : ComponentActivity() {
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
-  val db = Room.databaseBuilder(applicationContext, FinanceDatabase::class.java, "finance-local.db").build()
-  setContent { MaterialTheme { FinanceApp(db.dao()) } }
+  val migration = object : Migration(1, 2) {
+ override fun migrate(db: SupportSQLiteDatabase) {
+  db.execSQL("CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, institution TEXT NOT NULL, openingBalanceCents INTEGER NOT NULL)")
+  db.execSQL("CREATE TABLE IF NOT EXISTS cards (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, limitCents INTEGER NOT NULL, closingDay INTEGER NOT NULL, dueDay INTEGER NOT NULL)")
+  db.execSQL("CREATE TABLE IF NOT EXISTS card_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, cardId INTEGER NOT NULL, description TEXT NOT NULL, amountCents INTEGER NOT NULL, purchasedAt INTEGER NOT NULL)")
+  db.execSQL("CREATE INDEX IF NOT EXISTS index_card_purchases_cardId ON card_purchases (cardId)")
+  db.execSQL("CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, targetCents INTEGER NOT NULL, savedCents INTEGER NOT NULL)")
+ }
+}
+val db = Room.databaseBuilder(applicationContext, FinanceDatabase::class.java, "finance-local.db").addMigrations(migration).build()
+  setContent { MaterialTheme { FinanceApp(db.dao(), db.extras()) } }
  }
 }
 private fun cents(s: String): Long? = runCatching {
@@ -66,7 +77,7 @@ private fun cents(s: String): Long? = runCatching {
 }.getOrNull()?.takeIf { it > 0 }
 private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")).format(BigDecimal.valueOf(v, 2))
 
-@Composable fun FinanceApp(dao: FinanceDao) {
+@Composable fun FinanceApp(dao: FinanceDao, extraDao: ExtraFinanceDao) {
  val transactions by dao.transactions().collectAsState(initial = emptyList())
  val debts by dao.debts().collectAsState(initial = emptyList())
  val payments by dao.payments().collectAsState(initial = emptyList())
@@ -92,6 +103,12 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
     FilterChip(tab == 1, { tab = 1 }, label = { Text("Lançamentos") })
     FilterChip(tab == 2, { tab = 2 }, label = { Text("Dívidas") })
     FilterChip(tab == 3, { tab = 3 }, label = { Text("Bancos") })
+   }
+   Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FilterChip(tab == 4, { tab = 4 }, label = { Text("Contas") })
+    FilterChip(tab == 5, { tab = 5 }, label = { Text("Cartões") })
+    FilterChip(tab == 6, { tab = 6 }, label = { Text("Metas") })
+    FilterChip(tab == 7, { tab = 7 }, label = { Text("Relatórios") })
    }
    if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
    when(tab) {
@@ -162,6 +179,14 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
        HorizontalDivider()
       }
      } }
+    }
+    4, 5, 6 -> ExtraFinanceScreen(extraDao, tab)
+    7 -> Column {
+     Text("Relatório financeiro", style = MaterialTheme.typography.titleLarge)
+     Text("Receitas: " + money(income))
+     Text("Despesas: " + money(expense))
+     Text("Resultado: " + money(income - expense))
+     Text("Principal de dívidas: " + money(outstanding))
     }
     else -> Column {
      Text("Integrações bancárias", style = MaterialTheme.typography.titleMedium)

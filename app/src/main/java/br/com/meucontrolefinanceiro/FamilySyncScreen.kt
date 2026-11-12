@@ -16,8 +16,8 @@ import java.util.UUID
 /** Shared Supabase view. Requires user JWT; local Room records are not silently uploaded. */
 @Composable
 fun FamilySyncScreen() {
- var endpoint by remember { mutableStateOf("") }
- var publicKey by remember { mutableStateOf("") }
+ var endpoint by remember { mutableStateOf("https://fbvfequlagmeiyeusodp.supabase.co") }
+ var publicKey by remember { mutableStateOf("sb_publishable_HNQbiXjYHod0lhVtngsBzg_56j3ULcv") }
  var token by remember { mutableStateOf("") }
  var email by remember { mutableStateOf("") }
  var password by remember { mutableStateOf("") }

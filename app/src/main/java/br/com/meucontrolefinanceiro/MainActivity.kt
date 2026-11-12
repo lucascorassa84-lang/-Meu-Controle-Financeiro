@@ -1,7 +1,11 @@
 package br.com.meucontrolefinanceiro
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import android.Manifest
+import android.os.Build
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
@@ -55,23 +59,37 @@ data class DebtPayment(
  @Insert suspend fun addDebt(item: Debt)
  @Insert suspend fun addPayment(item: DebtPayment)
 }
-@Database(entities = [Transaction::class, Debt::class, DebtPayment::class, Account::class, FinanceCard::class, CardPurchase::class, FinanceGoal::class], version = 2, exportSchema = false)
-abstract class FinanceDatabase : RoomDatabase() { abstract fun dao(): FinanceDao; abstract fun extras(): ExtraFinanceDao }
+@Database(entities = [Transaction::class, Debt::class, DebtPayment::class, Account::class, FinanceCard::class, CardPurchase::class, FinanceGoal::class, InstallmentPurchase::class, BillPayment::class, BankMovement::class], version = 3, exportSchema = false)
+abstract class FinanceDatabase : RoomDatabase() { abstract fun dao(): FinanceDao; abstract fun extras(): ExtraFinanceDao; abstract fun billing(): BillingDao }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+ private var authenticated by mutableStateOf(false)
+ private var authError by mutableStateOf("")
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
-  val migration = object : Migration(1, 2) {
- override fun migrate(db: SupportSQLiteDatabase) {
-  db.execSQL("CREATE TABLE IF NOT EXISTS accounts (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, institution TEXT NOT NULL, openingBalanceCents INTEGER NOT NULL)")
-  db.execSQL("CREATE TABLE IF NOT EXISTS cards (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, limitCents INTEGER NOT NULL, closingDay INTEGER NOT NULL, dueDay INTEGER NOT NULL)")
-  db.execSQL("CREATE TABLE IF NOT EXISTS card_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, cardId INTEGER NOT NULL, description TEXT NOT NULL, amountCents INTEGER NOT NULL, purchasedAt INTEGER NOT NULL)")
-  db.execSQL("CREATE INDEX IF NOT EXISTS index_card_purchases_cardId ON card_purchases (cardId)")
-  db.execSQL("CREATE TABLE IF NOT EXISTS goals (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, name TEXT NOT NULL, targetCents INTEGER NOT NULL, savedCents INTEGER NOT NULL)")
+  val db = FinanceDbProvider.get(applicationContext)
+  LocalReminders.schedule(applicationContext)
+  if (Build.VERSION.SDK_INT >= 33 &&
+   ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+   requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 70)
+  }
+  setContent {
+   MaterialTheme {
+    if (authenticated) FinanceApp(db.dao(), db.extras(), db.billing())
+    else Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+     Text("Meu Controle Financeiro", style = MaterialTheme.typography.headlineMedium)
+     Text("Seus dados financeiros estão protegidos pelo bloqueio de tela.")
+     if (authError.isNotBlank()) Text(authError, color = MaterialTheme.colorScheme.error)
+     Button(onClick = { FinanceAuth.unlock(this@MainActivity,
+      onSuccess = { authenticated = true; authError = "" },
+      onError = { authError = it }) }) { Text("Desbloquear com biometria ou senha do celular") }
+    }
+   }
+  }
  }
-}
-val db = Room.databaseBuilder(applicationContext, FinanceDatabase::class.java, "finance-local.db").addMigrations(migration).build()
-  setContent { MaterialTheme { FinanceApp(db.dao(), db.extras()) } }
+ override fun onStop() {
+  super.onStop()
+  authenticated = false
  }
 }
 private fun cents(s: String): Long? = runCatching {
@@ -79,7 +97,7 @@ private fun cents(s: String): Long? = runCatching {
 }.getOrNull()?.takeIf { it > 0 }
 private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("pt-BR")).format(BigDecimal.valueOf(v, 2))
 
-@Composable fun FinanceApp(dao: FinanceDao, extraDao: ExtraFinanceDao) {
+@Composable fun FinanceApp(dao: FinanceDao, extraDao: ExtraFinanceDao, billingDao: BillingDao) {
  val transactions by dao.transactions().collectAsState(initial = emptyList())
  val debts by dao.debts().collectAsState(initial = emptyList())
  val payments by dao.payments().collectAsState(initial = emptyList())
@@ -111,6 +129,10 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
     FilterChip(tab == 5, { tab = 5 }, label = { Text("Cartões") })
     FilterChip(tab == 6, { tab = 6 }, label = { Text("Metas") })
     FilterChip(tab == 7, { tab = 7 }, label = { Text("Relatórios") })
+   }
+   Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FilterChip(tab == 8, { tab = 8 }, label = { Text("Faturas") })
+    FilterChip(tab == 9, { tab = 9 }, label = { Text("Conciliação") })
    }
    if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
    when(tab) {
@@ -195,6 +217,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
      } }
     }
     4, 5, 6 -> ExtraFinanceScreen(extraDao, tab)
+    8, 9 -> BillingScreen(billingDao, dao, extraDao, tab)
     7 -> Column {
      Text("Relatório financeiro", style = MaterialTheme.typography.titleLarge)
      Text("Receitas: " + money(income))

@@ -8,7 +8,13 @@ import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -74,7 +80,7 @@ class MainActivity : FragmentActivity() {
    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 70)
   }
   setContent {
-   MaterialTheme {
+   MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF2357C6), secondary = Color(0xFF008E7A), background = Color(0xFFF5F7FC), surface = Color.White)) {
     if (authenticated) FinanceApp(db.dao(), db.extras(), db.billing())
     else Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
      Text("Meu Controle Financeiro", style = MaterialTheme.typography.headlineMedium)
@@ -116,32 +122,59 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
  val income = transactions.filter { it.kind == "INCOME" }.sumOf { it.amountCents }
  val expense = transactions.filter { it.kind == "EXPENSE" }.sumOf { it.amountCents }
  val outstanding = debts.sumOf { d -> (d.principalCents - payments.filter { it.debtId == d.id }.sumOf { it.amountCents }).coerceAtLeast(0) }
- Scaffold(topBar = { Surface(tonalElevation = 3.dp) { Text("Meu Controle Financeiro", Modifier.fillMaxWidth().padding(18.dp), style = MaterialTheme.typography.titleLarge) } }) { padding ->
-  Column(Modifier.fillMaxSize().padding(padding).padding(14.dp)) {
-   Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-    FilterChip(tab == 0, { tab = 0 }, label = { Text("Painel") })
-    FilterChip(tab == 1, { tab = 1 }, label = { Text("Lançamentos") })
-    FilterChip(tab == 2, { tab = 2 }, label = { Text("Dívidas") })
-    FilterChip(tab == 3, { tab = 3 }, label = { Text("Bancos") })
+ val sections = listOf("Painel", "Lançamentos", "Dívidas", "Bancos", "Contas", "Cartões", "Metas", "Relatórios", "Faturas", "Conciliação")
+ Scaffold(containerColor = Color(0xFFF5F7FC), topBar = {
+  Surface(color = Color(0xFF142B56)) {
+   Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp)) {
+    Text("MEU CONTROLE", color = Color(0xFFB5C9F0), style = MaterialTheme.typography.labelMedium)
+    Text("Financeiro", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Seu dinheiro, com mais clareza", color = Color(0xFFD5E1F9), style = MaterialTheme.typography.bodySmall)
    }
-   Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-    FilterChip(tab == 4, { tab = 4 }, label = { Text("Contas") })
-    FilterChip(tab == 5, { tab = 5 }, label = { Text("Cartões") })
-    FilterChip(tab == 6, { tab = 6 }, label = { Text("Metas") })
-    FilterChip(tab == 7, { tab = 7 }, label = { Text("Relatórios") })
+  }
+ }) { padding ->
+  Column(Modifier.fillMaxSize().padding(padding)) {
+   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    sections.forEachIndexed { index, title ->
+     FilterChip(selected = tab == index, onClick = { tab = index; error = "" }, label = { Text(title) }, shape = RoundedCornerShape(14.dp))
+    }
    }
-   Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-    FilterChip(tab == 8, { tab = 8 }, label = { Text("Faturas") })
-    FilterChip(tab == 9, { tab = 9 }, label = { Text("Conciliação") })
-   }
+   Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
    if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
    when(tab) {
-    0 -> Column {
-     Text("Saldo registrado: " + money(income - expense), style = MaterialTheme.typography.headlineSmall)
-     Text("Receitas: " + money(income))
-     Text("Despesas: " + money(expense))
-     Text("Principal de dívidas restante: " + money(outstanding))
-     Text("Os valores representam registros locais; não são saldos bancários sincronizados.")
+    0 -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+     Surface(color = Color(0xFF1C417D), shape = RoundedCornerShape(22.dp), shadowElevation = 3.dp) {
+      Column(Modifier.fillMaxWidth().padding(22.dp)) {
+       Text("SALDO REGISTRADO", color = Color(0xFFBFD3F8), style = MaterialTheme.typography.labelMedium)
+       Spacer(Modifier.height(8.dp))
+       Text(money(income - expense), color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+       Spacer(Modifier.height(12.dp))
+       Text("Atualizado com seus lançamentos", color = Color(0xFFD4E2FC), style = MaterialTheme.typography.bodySmall)
+      }
+     }
+     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+      DashboardMetric("Receitas", money(income), Color(0xFF087B65), Modifier.weight(1f))
+      DashboardMetric("Despesas", money(expense), Color(0xFFC24A4A), Modifier.weight(1f))
+     }
+     DashboardMetric("Dívidas restantes", money(outstanding), Color(0xFF294D91), Modifier.fillMaxWidth())
+     Text("Acesso rápido", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+      Button(onClick = { tab = 1 }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) { Text("+ Lançamento") }
+      OutlinedButton(onClick = { tab = 8 }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) { Text("Ver faturas") }
+     }
+     Text("Movimentações recentes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+     Surface(color = Color.White, shape = RoundedCornerShape(18.dp)) {
+      Column(Modifier.fillMaxWidth().padding(12.dp)) {
+       if (transactions.isEmpty()) Text("Nenhum lançamento registrado ainda.", color = Color(0xFF64748B), modifier = Modifier.padding(10.dp))
+       else transactions.take(5).forEach { t ->
+        ListItem(headlineContent = { Text(t.description, fontWeight = FontWeight.Medium) },
+         supportingContent = { Text(if (t.kind == "INCOME") "Receita" else "Despesa") },
+         trailingContent = { Text((if (t.kind == "INCOME") "+ " else "- ") + money(t.amountCents),
+          color = if (t.kind == "INCOME") Color(0xFF087B65) else Color(0xFFC24A4A)) })
+        HorizontalDivider(color = Color(0xFFF0F2F7))
+       }
+      }
+     }
+     Text("Valores de registros locais; não representam saldos bancários sincronizados.", color = Color(0xFF64748B), style = MaterialTheme.typography.bodySmall)
     }
     1 -> Column {
      OutlinedTextField(description, { description = it }, label = { Text("Descrição") }, modifier = Modifier.fillMaxWidth())
@@ -232,6 +265,17 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
      Text("Seus lançamentos e dívidas permanecem armazenados somente no celular.")
     }
    }
+  }
+ }
+}
+
+@Composable
+private fun DashboardMetric(title: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+ Surface(modifier = modifier, color = Color.White, shape = RoundedCornerShape(18.dp), shadowElevation = 1.dp) {
+  Column(Modifier.padding(17.dp)) {
+   Text(title, color = Color(0xFF64748B), style = MaterialTheme.typography.labelLarge)
+   Spacer(Modifier.height(7.dp))
+   Text(value, color = accent, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
   }
  }
 }

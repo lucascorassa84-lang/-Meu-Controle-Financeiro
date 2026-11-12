@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -28,3 +28,14 @@ jobs:
           name: MeuControleFinanceiro-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish APK for direct download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep -m1 'versionName =' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          TAG="download-${VERSION}"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Meu Controle Financeiro ${VERSION}" --notes "APK de teste para Android. Instale apenas se confiar neste repositório." --target "${GITHUB_SHA}"
+          gh release upload "$TAG" "$APK#MeuControleFinanceiro.apk" --clobber

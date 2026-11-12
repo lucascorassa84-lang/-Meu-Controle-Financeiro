@@ -42,23 +42,23 @@ private fun signInSupabase(projectUrl: String, key: String, email: String, passw
 @Composable
 fun FamilyOnlineScreen() {
  val scope = rememberCoroutineScope()
- var projectUrl by remember { mutableStateOf("https://fbvfequlagmeiyeusodp.supabase.co") }
- var publishableKey by remember { mutableStateOf("") }
- var email by remember { mutableStateOf("") }
+ val projectUrl = "https://fbvfequlagmeiyeusodp.supabase.co"
+ val publishableKey = "sb_publishable_HNQbiXjYHod0lhVtngsBzg_56j3ULcv"
+ val email = BuildConfig.FAMILY_EMAIL
  var password by remember { mutableStateOf("") }
- var familyId by remember { mutableStateOf("") }
+ val familyId = BuildConfig.FAMILY_ID
  var accessToken by remember { mutableStateOf<String?>(null) }
  var busy by remember { mutableStateOf(false) }
  var message by remember { mutableStateOf("Faça login para sincronizar.") }
  var movements by remember { mutableStateOf<List<String>>(emptyList()) }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
   Text("Família online", style = MaterialTheme.typography.headlineSmall)
-  OutlinedTextField(projectUrl, { projectUrl = it }, label = { Text("URL do projeto Supabase") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-  OutlinedTextField(publishableKey, { publishableKey = it }, label = { Text("Chave publicável") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-  OutlinedTextField(email, { email = it }, label = { Text("E-mail da conta") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+  Text("Digite a senha para acessar as movimentações da família.")
   OutlinedTextField(password, { password = it }, label = { Text("Senha") }, modifier = Modifier.fillMaxWidth(), visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-  OutlinedTextField(familyId, { familyId = it }, label = { Text("UUID da família") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
   Button(enabled = !busy, onClick = {
+   if (email.isBlank() || familyId.isBlank()) {
+    message = "A conta familiar ainda precisa ser vinculada na configuração do aplicativo."
+   } else {
    busy = true
    message = "Conectando..."
    scope.launch {
@@ -71,6 +71,7 @@ fun FamilyOnlineScreen() {
      accessToken = null
      message = e.message ?: "Não foi possível entrar na conta."
     } finally { busy = false }
+   }
    }
   }) { Text(if (busy) "Aguarde..." else "Entrar na conta") }
   Button(enabled = !busy && accessToken != null, onClick = {
@@ -87,6 +88,6 @@ fun FamilyOnlineScreen() {
   }) { Text("Atualizar movimentações") }
   Text(message, color = if (message.startsWith("Falha")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
   movements.forEach { Text(it) }
-  Text("Esta tela consulta movimentações remotas. O vínculo familiar e a gravação bidirecional dependem da configuração de membros e permissões no Supabase.", style = MaterialTheme.typography.bodySmall)
+  Text("Acesso protegido pelo Supabase. A sincronização depende das permissões da família.", style = MaterialTheme.typography.bodySmall)
  }
 }

@@ -62,6 +62,7 @@ data class DebtPayment(
  @Query("SELECT * FROM debts ORDER BY id DESC") fun debts(): Flow<List<Debt>>
  @Query("SELECT * FROM debt_payments ORDER BY paidAt DESC") fun payments(): Flow<List<DebtPayment>>
  @Insert suspend fun addTransaction(item: Transaction)
+ @Delete suspend fun deleteTransaction(item: Transaction)
  @Insert suspend fun addDebt(item: Debt)
  @Insert suspend fun addPayment(item: DebtPayment)
 }
@@ -119,6 +120,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
  var selectedDebt by remember { mutableStateOf<Long?>(null) }
  var payment by remember { mutableStateOf("") }
  var error by remember { mutableStateOf("") }
+ var pendingDelete by remember { mutableStateOf<Transaction?>(null) }
  val income = transactions.filter { it.kind == "INCOME" }.sumOf { it.amountCents }
  val expense = transactions.filter { it.kind == "EXPENSE" }.sumOf { it.amountCents }
  val outstanding = debts.sumOf { d -> (d.principalCents - payments.filter { it.debtId == d.id }.sumOf { it.amountCents }).coerceAtLeast(0) }
@@ -139,6 +141,16 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
     }
    }
    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+   if (pendingDelete != null) {
+    val item = pendingDelete!!
+    AlertDialog(
+     onDismissRequest = { pendingDelete = null },
+     title = { Text("Excluir lançamento?") },
+     text = { Text("Confirma a exclusão de " + item.description + " (" + money(item.amountCents) + ")?") },
+     confirmButton = { TextButton(onClick = { scope.launch { dao.deleteTransaction(item) }; pendingDelete = null }) { Text("Excluir", color = MaterialTheme.colorScheme.error) } },
+     dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") } }
+    )
+   }
    if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
    when(tab) {
     0 -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -193,7 +205,7 @@ private fun money(v: Long): String = NumberFormat.getCurrencyInstance(Locale.for
       }
      }) { Text("Salvar lançamento") }
      LazyColumn { items(transactions, key = { it.id }) { t ->
-      ListItem(headlineContent = { Text(t.description) }, supportingContent = { Text(if(t.kind == "INCOME") "Receita" else "Despesa") }, trailingContent = { Text(money(t.amountCents)) })
+      ListItem(headlineContent = { Text(t.description) }, supportingContent = { Text(if(t.kind == "INCOME") "Receita" else "Despesa") }, trailingContent = { Row(verticalAlignment = Alignment.CenterVertically) { Text(money(t.amountCents)); TextButton(onClick = { pendingDelete = t }) { Text("Excluir", color = MaterialTheme.colorScheme.error) } } })
       HorizontalDivider()
      } }
     }

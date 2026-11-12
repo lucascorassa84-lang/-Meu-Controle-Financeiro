@@ -11,10 +11,14 @@ android {
   applicationId = "br.com.meucontrolefinanceiro"
   minSdk = 26
   targetSdk = 35
-  versionCode = 2
-  versionName = "1.1.0-dev"
+  versionName = "1.1.1-dev"
+  versionCode = 3
+  val familyEmail = providers.gradleProperty("familyEmail").orElse("").get()
+  val familyId = providers.gradleProperty("familyId").orElse("").get()
+  buildConfigField("String", "FAMILY_EMAIL", "\\\"" + familyEmail.replace("\\", "\\\\").replace("\\"", "\\\"") + "\\\"")
+  buildConfigField("String", "FAMILY_ID", "\\\"" + familyId.replace("\\", "\\\\").replace("\\"", "\\\"") + "\\\"")
  }
- buildFeatures { compose = true }
+ buildFeatures { compose = true; buildConfig = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
 }

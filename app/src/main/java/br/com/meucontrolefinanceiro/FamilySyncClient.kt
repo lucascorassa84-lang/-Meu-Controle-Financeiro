@@ -35,7 +35,19 @@ class FamilySyncClient(
    val status = connection.responseCode
    val stream = if (status in 200..299) connection.inputStream else connection.errorStream
    val result = stream?.bufferedReader()?.use { it.readText() } ?: ""
-   if (status !in 200..299) throw IllegalStateException("Falha de sincronização HTTP $status")
+   if (status !in 200..299) {
+    val error = runCatching { JSONObject(result) }.getOrNull()
+    val code = error?.optString("code").orEmpty()
+    val detail = error?.optString("message").orEmpty()
+    val hint = error?.optString("hint").orEmpty()
+    val explanation = when (status) {
+     401 -> "Sessão expirada ou autenticação inválida. Entre novamente."
+     403 -> "Acesso negado à família. Verifique as permissões RLS e o vínculo do usuário."
+     404 -> "Tabela de sincronização não encontrada no Supabase."
+     else -> "Falha de sincronização HTTP $status: ${detail.ifBlank { code }}"
+    }
+    throw IllegalStateException(listOf(explanation, hint).filter { it.isNotBlank() }.joinToString(" "))
+   }
    result
   } finally { connection.disconnect() }
  }

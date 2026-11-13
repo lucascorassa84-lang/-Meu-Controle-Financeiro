@@ -34,8 +34,16 @@ private fun signInSupabase(projectUrl: String, key: String, email: String, passw
   val status = connection.responseCode
   val response = (if (status in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
   if (status !in 200..299) {
-   val reason = runCatching { JSONObject(response).optString("msg").ifBlank { JSONObject(response).optString("error_description") } }.getOrDefault("")
-   throw IllegalStateException(if (status == 400 || status == 401) "E-mail ou senha incorretos, ou conta ainda não confirmada." else "Falha no login (HTTP $status): $reason")
+   val error = runCatching { JSONObject(response) }.getOrNull()
+   val code = error?.optString("error_code").orEmpty().ifBlank { error?.optString("code").orEmpty() }
+   val reason = error?.optString("msg").orEmpty().ifBlank { error?.optString("error_description").orEmpty() }.ifBlank { error?.optString("message").orEmpty() }
+   val explanation = when (code) {
+    "email_not_confirmed" -> "O e-mail ainda não foi confirmado no Supabase. Confirme a conta ou desative a exigência de confirmação no painel do projeto."
+    "invalid_credentials" -> "E-mail ou senha incorretos. Confira os dados e tente novamente."
+    "email_provider_disabled" -> "O login por e-mail está desativado no Supabase."
+    else -> if (status == 400 || status == 401) "Login recusado pelo Supabase: ${reason.ifBlank { code.ifBlank { "verifique os dados da conta" } }}" else "Falha no login (HTTP $status): ${reason.ifBlank { code }}"
+   }
+   throw IllegalStateException(explanation)
   }
   return JSONObject(response).getString("access_token")
  } finally { connection.disconnect() }
@@ -62,9 +70,6 @@ fun FamilyOnlineScreen() {
    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
    trailingIcon = { TextButton(onClick = { showPassword = !showPassword }) { Text(if (showPassword) "Ocultar" else "Mostrar") } })
   Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
-   if (familyId.isBlank()) {
-    message = "A conta familiar ainda precisa ser vinculada na configuração do aplicativo."
-   } else {
    busy = true
    message = "Conectando..."
    scope.launch {
@@ -72,15 +77,14 @@ fun FamilyOnlineScreen() {
      val token = withContext(Dispatchers.IO) { signInSupabase(projectUrl, publishableKey, email, password) }
      accessToken = token
      password = ""
-     message = "Login realizado. Atualize as movimentações."
+     message = if (familyId.isBlank()) "Login realizado. Para sincronizar, configure o identificador da família." else "Login realizado. Atualize as movimentações."
     } catch (e: Exception) {
      accessToken = null
      message = e.message ?: "Não foi possível entrar na conta."
     } finally { busy = false }
    }
-   }
   }) { Text(if (busy) "Aguarde..." else "Entrar na conta") }
-  Button(enabled = !busy && accessToken != null, onClick = {
+  Button(enabled = !busy && accessToken != null && familyId.isNotBlank(), onClick = {
    busy = true
    scope.launch {
     try {

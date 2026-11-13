@@ -7,6 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,7 +49,8 @@ fun FamilyOnlineScreen() {
  val scope = rememberCoroutineScope()
  val projectUrl = "https://fbvfequlagmeiyeusodp.supabase.co"
  val publishableKey = "sb_publishable_HNQbiXjYHod0lhVtngsBzg_56j3ULcv"
- val email = BuildConfig.FAMILY_EMAIL
+ var email by remember { mutableStateOf(BuildConfig.FAMILY_EMAIL) }
+ var showPassword by remember { mutableStateOf(false) }
  var password by remember { mutableStateOf("") }
  val familyId = BuildConfig.FAMILY_ID
  var accessToken by remember { mutableStateOf<String?>(null) }
@@ -53,10 +59,13 @@ fun FamilyOnlineScreen() {
  var movements by remember { mutableStateOf<List<String>>(emptyList()) }
  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
   Text("Família online", style = MaterialTheme.typography.headlineSmall)
-  Text("Digite a senha para acessar as movimentações da família.")
-  OutlinedTextField(password, { password = it }, label = { Text("Senha") }, modifier = Modifier.fillMaxWidth(), visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-  Button(enabled = !busy, onClick = {
-   if (email.isBlank() || familyId.isBlank()) {
+  Text("Acesse e compartilhe as movimentações da família com segurança.")
+  OutlinedTextField(value = email, onValueChange = { email = it; accessToken = null }, label = { Text("E-mail") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+  OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Senha") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+   visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+   trailingIcon = { TextButton(onClick = { showPassword = !showPassword }) { Text(if (showPassword) "Ocultar" else "Mostrar") } })
+  Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+   if (familyId.isBlank()) {
     message = "A conta familiar ainda precisa ser vinculada na configuração do aplicativo."
    } else {
    busy = true
